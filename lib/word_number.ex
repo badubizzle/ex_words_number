@@ -19,4 +19,8 @@ defmodule WordNumber do
   def words_to_number(words) do
     Numbers.words_to_number(words)
   end
+
+  def number_to_words(number) do
+    Numbers.number_to_words(number)
+  end
 end

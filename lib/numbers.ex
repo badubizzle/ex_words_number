@@ -34,6 +34,10 @@ defmodule Numbers do
     "trillion" => 1_000_000_000_000
   }
 
+  @numbers_words Enum.zip(Map.values(@numbers), Map.keys(@numbers))
+                 |> Enum.sort()
+                 |> Enum.reverse()
+
   @multi ["thousand", "million", "billion", "trillion"]
   @multi_with_hundred ["hundred" | @multi]
 
@@ -219,5 +223,36 @@ defmodule Numbers do
       true ->
         raise error_message
     end
+  end
+
+  def number_to_words(number) when is_integer(number) do
+    @numbers_words
+    |> number_to_words(number, [])
+    |> Enum.reverse()
+    |> Enum.join(" ")
+  end
+
+  def number_to_words([], _number, acc) do
+    acc
+  end
+
+  def number_to_words(_, number, acc) when number <= 0 do
+    acc
+  end
+
+  def number_to_words([{v, k} | r], number, acc) when number >= v and v >= 100 do
+    remainder = rem(number, v)
+    count = number_to_words(div(number, v))
+
+    number_to_words(r, remainder, ["#{count} #{k}" | acc])
+  end
+
+  def number_to_words([{v, k} | r], number, acc) when number >= v do
+    remainder = rem(number, v)
+    number_to_words(r, remainder, ["#{k}" | acc])
+  end
+
+  def number_to_words([{_, _} | r], number, acc) do
+    number_to_words(r, number, acc)
   end
 end
