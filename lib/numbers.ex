@@ -99,6 +99,10 @@ defmodule Numbers do
       1
       iex> Numbers.words_to_number("hundred")
       100
+      iex> Numbers.words_to_number("seven hundred and five thousand, eight hundred and forty seven")
+      705847
+      iex> Numbers.words_to_number("two hundred and seventy eight thousand, nine hundred")
+      278900
   """
 
   def words_to_number(words) when is_binary(words) do
