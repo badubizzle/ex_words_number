@@ -111,13 +111,11 @@ defmodule Numbers do
     get_number_from_words(parts, words)
   end
 
-  defp get_number_from_words([word], _figure) when is_valid_start(word) do
+  defp get_number_from_words([word], _figure) do
     number(word)
   end
 
-  defp get_number_from_words([h | _] = words, figure)
-       when is_list(words)
-       when is_valid_start(h) do
+  defp get_number_from_words([h | _] = words, figure) when is_valid_start(h) do
     acc = process_words(figure, words, [])
 
     number =
@@ -132,27 +130,27 @@ defmodule Numbers do
     number
   end
 
+  defp process_acc(value, [prev | acc2]) when prev < 1000 do
+    v = value + prev
+    [v | acc2]
+  end
+
+  defp process_acc(value, acc) do
+    [value | acc]
+  end
+
   defp process_words(_, [], acc) do
     Enum.reverse(acc)
   end
 
-  defp process_words(_, [word], [prev | acc2])
-       when word in @multi do
-    Enum.reverse([number(word) * prev | acc2])
-  end
-
-  defp process_words(_, [word], acc) do
-    Enum.reverse([number(word) | acc])
-  end
-
-  defp process_words(figure, [h | [t | r]] = words, acc) do
+  defp process_words(figure, [h | r] = words, acc) do
     error_message = "Invalid figure #{figure} starting from '#{Enum.join(words, " ")}'"
 
     cond do
       h in @multi ->
         [prev | acc2] = acc
         acc = [number(h) * prev | acc2]
-        process_words(figure, [t | r], acc)
+        process_words(figure, r, acc)
 
       h in ["hundred"] ->
         [prev | acc2] = acc
@@ -162,67 +160,42 @@ defmodule Numbers do
           # prevent hundred must be preceeded by number less than 10
           # e.g two hundred not twenty hundred
           acc = [number(h) * prev | acc2]
-          process_words(figure, [t | r], acc)
+          process_words(figure, r, acc)
         else
           raise error_message
         end
 
       h in @ones ->
-        cond do
-          t in @multi_with_hundred ->
-            v = number(h) * number(t)
-            process_words(figure, r, [v | acc])
+        # validation:
+        # prevents something like five three or four forty
+        # can only be follow by nothing or hundred or thousand or million or billion
 
-          true ->
-            raise error_message
+        if List.first(r) in (@tens ++ @teens ++ @ones) do
+          raise error_message
         end
+
+        process_words(figure, r, process_acc(number(h), acc))
 
       h in @teens ->
-        cond do
-          t in @multi ->
-            # validation
-            # ten to nineteen must be followed by
-            v = number(h) * number(t)
-            process_words(figure, r, [v | acc])
+        # validation:
+        # prevents something like eleven five  or thirteen forty
+        # can only be follow by nothing or thousand or million or billion
 
-          true ->
-            raise error_message
+        if List.first(r) in (@tens ++ @teens ++ @ones ++ ["hundred"]) do
+          raise error_message
         end
+
+        process_words(figure, r, process_acc(number(h), acc))
 
       h in @tens ->
-        cond do
-          t in @ones ->
-            # validation:
-            # prevents something like twenty five three or thirty four forty
-            # can only be follow by nohting, thousand, million, billion
-            if List.first(r) in (@tens ++ @teens ++ @ones ++ ["hundred"]) do
-              raise error_message
-            else
-              v = number(h) + number(t)
-
-              case acc do
-                [prev | acc2] when is_integer(prev) and prev < 1000 ->
-                  process_words(figure, r, [v + prev | acc2])
-
-                _ ->
-                  process_words(figure, r, [v | acc])
-              end
-            end
-
-          t in ["thousand", "million", "billion"] ->
-            case acc do
-              [prev | acc2] when is_integer(prev) and prev < 1000 ->
-                v = (prev + number(h)) * number(t)
-                process_words(figure, r, [v | acc2])
-
-              _ ->
-                v = number(h) * number(t)
-                process_words(figure, r, [v | acc])
-            end
-
-          true ->
-            raise error_message
+        # validation:
+        # prevents something like twenty elevent or thirty forty
+        # can only be follow by nothing or ones or thousand or million or billion
+        if List.first(r) in (@tens ++ @teens ++ ["hundred"]) do
+          raise error_message
         end
+
+        process_words(figure, r, process_acc(number(h), acc))
 
       true ->
         raise error_message
@@ -231,9 +204,22 @@ defmodule Numbers do
 
   def number_to_words(number) when is_integer(number) do
     @numbers_words
-    |> number_to_words(number, [])
-    |> Enum.reverse()
-    |> Enum.join(" ")
+    |> number_to_words(number, %{big: [], small: []})
+    |> format_words(number)
+  end
+
+  defp format_words(%{big: [_ | _] = big, small: [_ | _] = small}, number) when number >= 100 do
+    format_words(List.flatten([Enum.reverse(big), [Enum.join(Enum.reverse(small), " ")]]))
+  end
+
+  defp format_words(%{big: big, small: small}, _number) do
+    Enum.join(List.flatten([Enum.reverse(big), Enum.reverse(small)]), " ")
+  end
+
+  defp format_words(l) when is_list(l) do
+    last = List.last(l)
+    top = Enum.take(l, Enum.count(l) - 1)
+    "#{Enum.join(top, ", ")} and #{last}"
   end
 
   def number_to_words([], _number, acc) do
@@ -244,16 +230,19 @@ defmodule Numbers do
     acc
   end
 
-  def number_to_words([{v, k} | r], number, acc) when number >= v and v >= 100 do
+  def number_to_words([{v, k} | r], number, %{big: big} = acc) when number >= v and v >= 100 do
     remainder = rem(number, v)
     count = number_to_words(div(number, v))
-
-    number_to_words(r, remainder, ["#{count} #{k}" | acc])
+    word = "#{count} #{k}"
+    big = [word | big]
+    acc = Map.put(acc, :big, big)
+    number_to_words(r, remainder, acc)
   end
 
-  def number_to_words([{v, k} | r], number, acc) when number >= v do
+  def number_to_words([{v, k} | r], number, %{small: small} = acc) when number >= v do
     remainder = rem(number, v)
-    number_to_words(r, remainder, ["#{k}" | acc])
+    acc = Map.put(acc, :small, ["#{k}" | small])
+    number_to_words(r, remainder, acc)
   end
 
   def number_to_words([{_, _} | r], number, acc) do
