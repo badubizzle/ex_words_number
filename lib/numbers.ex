@@ -24,7 +24,7 @@ defmodule Numbers do
     "forty" => 40,
     "fifty" => 50,
     "sixty" => 60,
-    "senventy" => 70,
+    "seventy" => 70,
     "eighty" => 80,
     "ninety" => 90,
     "hundred" => 100,
@@ -47,7 +47,7 @@ defmodule Numbers do
     "forty",
     "fifty",
     "sixty",
-    "senventy",
+    "seventy",
     "eighty",
     "ninety"
   ]
