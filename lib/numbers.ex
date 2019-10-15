@@ -170,7 +170,7 @@ defmodule Numbers do
         # prevents something like five three or four forty
         # can only be follow by nothing or hundred or thousand or million or billion
 
-        if List.first(r) in (@tens ++ @teens ++ @ones) do
+        if Enum.count(r) > 0 and number(List.first(r)) < 100 do
           raise error_message
         end
 
@@ -181,7 +181,7 @@ defmodule Numbers do
         # prevents something like eleven five  or thirteen forty
         # can only be follow by nothing or thousand or million or billion
 
-        if List.first(r) in (@tens ++ @teens ++ @ones ++ ["hundred"]) do
+        if Enum.count(r) > 0 and number(List.first(r)) <= 100 do
           raise error_message
         end
 
@@ -191,8 +191,13 @@ defmodule Numbers do
         # validation:
         # prevents something like twenty elevent or thirty forty
         # can only be follow by nothing or ones or thousand or million or billion
-        if List.first(r) in (@tens ++ @teens ++ ["hundred"]) do
-          raise error_message
+
+        if Enum.count(r) > 0 do
+          next_number = number(List.first(r))
+
+          if next_number > 9 and next_number <= 100 do
+            raise error_message
+          end
         end
 
         process_words(figure, r, process_acc(number(h), acc))
